@@ -5,6 +5,8 @@ import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 import logging
 import sys
+import threading
+from threading import Thread
 
 # Configure logging
 logging.basicConfig(
@@ -15,6 +17,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Global variable to store the crawled data
+crawled_data = []
 
 def get_text_safely(element):
     try:
@@ -148,9 +153,31 @@ def scrape_defillama_data():
             
     return all_data
 
+def background_crawler():
+    """Function to run the crawler in background"""
+    global crawled_data
+    while True:
+        try:
+            logger.info("Starting background crawl...")
+            crawled_data = scrape_defillama_data()
+            logger.info(f"Background crawl completed. Found {len(crawled_data)} investors.")
+            # Wait for 1 hour before next crawl
+            time.sleep(3600)
+        except Exception as e:
+            logger.error(f"Error in background crawler: {str(e)}")
+            time.sleep(60)  # Wait 1 minute before retrying
+
 @app.route('/', methods=['GET'])
 def home():
-    return "DeFi Llama Scraper Service is running. Access /scrape to get data."
+    # Set CORS headers
+    headers = {
+        'Access-Control-Allow-Origin': '*'
+    }
+    return jsonify({
+        "status": "success", 
+        "total_investors": len(crawled_data),
+        "data": crawled_data
+    }), 200, headers
 
 @app.route('/scrape', methods=['GET', 'OPTIONS'])
 def scrape():
@@ -170,20 +197,16 @@ def scrape():
     }
     
     try:
-        # Get the data
-        data = scrape_defillama_data()
-        
-        # Return the data as JSON
-        return jsonify({"status": "success", "data": data}), 200, headers
+        # Return the current data
+        return jsonify({"status": "success", "data": crawled_data}), 200, headers
     except Exception as e:
         logger.error(f"Error in /scrape endpoint: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500, headers
 
 if __name__ == '__main__':
-    # Start crawling immediately
-    logger.info("Starting initial crawl...")
-    data = scrape_defillama_data()
-    logger.info(f"Initial crawl completed. Found {len(data)} investors.")
+    # Start the crawler in a background thread
+    crawler_thread = Thread(target=background_crawler, daemon=True)
+    crawler_thread.start()
     
     # Start the Flask app
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    app.run(debug=True, host='0.0.0.0', port=8080, use_reloader=False)
