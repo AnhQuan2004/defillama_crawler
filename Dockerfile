@@ -20,5 +20,5 @@ COPY . .
 # Expose port
 EXPOSE 8080
 
-# Run with Python directly for better logging
-CMD ["python", "app.py"]
+# Change CMD line in Dockerfile to:
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
