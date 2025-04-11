@@ -1,0 +1,6 @@
+flask==2.2.3
+werkzeug==2.2.3
+gunicorn==20.1.0
+playwright==1.41.0
+numpy==1.23.5
+pandas==1.5.3
