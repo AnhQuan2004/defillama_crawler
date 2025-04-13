@@ -21,4 +21,4 @@ COPY . .
 EXPOSE 8080
 
 # Change CMD line in Dockerfile to:
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+CMD ["python", "app.py"]
